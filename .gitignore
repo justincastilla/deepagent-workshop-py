@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+
+# Env / secrets
+.env
+.env.local
+
+# Logs
+*.log
+
+# Solutions / answer key — instructor-only, never ship to attendees
+solutions/
+
+# Local helper — sync-done-branch.sh produces the local-only `done` branch
+sync-done-branch.sh
+
+# LiteLLM proxy infrastructure (deploy artifacts, reused from JS workshop, never tracked)
+litellm-setup/
+litellm-utilities/
+infra/
+
+# start-local artifacts (per-machine, contains generated secrets — each attendee runs start-local themselves)
+elastic-start-local/
+
+# Slide-deck build artifacts (commit the .pptx, ignore intermediates)
+slides/*.pdf
+slides/slide-*.jpg

@@ -1,0 +1,23 @@
+# Core agent stack
+deepagents>=0.0.6
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+
+# LLM SDKs (LiteLLM proxy speaks OpenAI-compatible, so langchain-openai is enough)
+openai>=1.40.0
+
+# Web server (FastAPI + WebSocket)
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+websockets>=13.0
+
+# HTTP client (for kibana_client + GitHub + Tavily tools)
+httpx>=0.27.0
+
+# Env loading
+python-dotenv>=1.0.0
+
+# Utilities
+pydantic>=2.8.0
