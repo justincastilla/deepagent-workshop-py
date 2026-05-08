@@ -18,6 +18,12 @@ const activityEl = $("#activity");
 const finalEl = $("#final");
 const finalPanelEl = $("#final-panel");
 const downloadEl = $("#download-md");
+const todosListEl = $("#todos-list");
+
+// Last-known todos snapshot: content -> status. Used to compute what's
+// new / changed when a fresh write_todos call comes in, so the panel can
+// flash exactly the items the orchestrator just touched.
+let lastTodos = new Map();
 
 // Latest raw-markdown final synthesis, kept around so the download button
 // can serve a real .md file regardless of how it's been rendered in the UI.
@@ -106,6 +112,10 @@ function clearOutput() {
     if (count) count.textContent = "0";
     group.classList.remove("starting", "active", "done");
   });
+
+  // Reset the todos panel
+  if (todosListEl) todosListEl.innerHTML = "";
+  lastTodos = new Map();
 
   // Hide the final synthesis panel until a new run produces one
   if (finalPanelEl) finalPanelEl.classList.add("hidden");
@@ -260,6 +270,72 @@ function completeToolCall({ runId, output, truncated }) {
   pendingToolCalls.delete(runId);
 }
 
+const TODO_STATUS_ICON = {
+  pending: "○",
+  in_progress: "◐",
+  completed: "●",
+};
+
+function renderTodos(todos) {
+  if (!todosListEl) return;
+  if (!Array.isArray(todos)) return;
+
+  // Compute deltas vs. the last snapshot so we can flash what changed.
+  const next = new Map();
+  const flashes = []; // parallel array: "new" | "update" | null
+
+  todos.forEach((t) => {
+    const content = String(t?.content ?? "");
+    const status = String(t?.status ?? "pending");
+    const prev = lastTodos.get(content);
+    let flash = null;
+    if (prev === undefined) flash = "new";
+    else if (prev !== status) flash = "update";
+    next.set(content, status);
+    flashes.push(flash);
+  });
+
+  // Re-render. (write_todos always replaces the full list, so a clean
+  // re-render is the simplest correct thing.)
+  todosListEl.innerHTML = "";
+  todos.forEach((t, idx) => {
+    const content = String(t?.content ?? "");
+    const status = String(t?.status ?? "pending");
+    const li = document.createElement("li");
+    li.className = `todo-item ${status}`;
+    if (flashes[idx] === "new") li.classList.add("flash-new");
+    else if (flashes[idx] === "update") li.classList.add("flash-update");
+
+    const statusEl = document.createElement("span");
+    statusEl.className = "todo-status";
+    statusEl.textContent = TODO_STATUS_ICON[status] ?? "·";
+    statusEl.title = status.replace("_", " ");
+    li.appendChild(statusEl);
+
+    const contentEl = document.createElement("span");
+    contentEl.className = "todo-content";
+    contentEl.textContent = content;
+    li.appendChild(contentEl);
+
+    todosListEl.appendChild(li);
+  });
+
+  // Bump the count badge in the header
+  const todoGroup = document.querySelector('.group[data-group="todos"]');
+  if (todoGroup) {
+    const count = todoGroup.querySelector(".group-count");
+    if (count) count.textContent = String(todos.length);
+    // Mark the panel as "active" while there's at least one in-progress item
+    todoGroup.classList.remove("starting", "active", "done");
+    const allDone = todos.length > 0 && todos.every((t) => t?.status === "completed");
+    const anyInProgress = todos.some((t) => t?.status === "in_progress");
+    if (allDone) todoGroup.classList.add("done");
+    else if (anyInProgress) todoGroup.classList.add("active");
+  }
+
+  lastTodos = next;
+}
+
 function setFinal(text) {
   finalEl.classList.remove("placeholder");
   finalRawMd = text ?? "";
@@ -393,6 +469,10 @@ function handleEvent(p) {
       });
       break;
     }
+
+    case "todos_update":
+      renderTodos(p.todos);
+      break;
 
     case "model_decision":
       // SKIP — the subsequent tool_start events show the same info.

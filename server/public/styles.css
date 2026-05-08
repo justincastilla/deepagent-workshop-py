@@ -14,6 +14,7 @@
   --sentiment: #ff9b59;
   --web: #79c0ff;
   --elastic: #ff7b72;
+  --todos: #e3b341;
 
   --error: #ff7b72;
   --ok: #56d364;
@@ -193,19 +194,23 @@ button:disabled {
 
 .activity {
   /* Three-row grid:
-       Row 1: orchestrator (full width)
-       Row 2: metrics  | sentiment
-       Row 3: web      | elastic
-     Wider subagent boxes; uses vertical space instead of cramping horizontally. */
+       Row 1: todos        | orchestrator
+       Row 2: metrics      | sentiment
+       Row 3: web          | elastic
+     Todos lives where the orchestrator used to, on the left. The
+     orchestrator is now subagent-sized, top-right. */
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   grid-template-areas:
-    "orch    orch"
+    "todos   orch"
     "metrics sentiment"
     "web     elastic";
   gap: 12px;
 }
 
+.group[data-group="todos"] {
+  grid-area: todos;
+}
 .group[data-group="orchestrator"] {
   grid-area: orch;
 }
@@ -287,16 +292,12 @@ button:disabled {
   padding: 2px 6px 2px 0;
 }
 
-/* Orchestrator gets a slightly shorter body since it's a wide row */
-.group[data-group="orchestrator"] .group-body {
-  height: 160px;
-}
-
 /* Responsive: collapse to a single column on very narrow viewports */
 @media (max-width: 700px) {
   .activity {
     grid-template-columns: 1fr;
     grid-template-areas:
+      "todos"
       "orch"
       "metrics"
       "sentiment"
@@ -331,8 +332,119 @@ button:disabled {
 .group[data-group="elastic-agent"] {
   --agent-color: var(--elastic);
 }
+.group[data-group="todos"] {
+  --agent-color: var(--todos);
+}
 .group[data-group="system"] {
   --agent-color: var(--text-dim);
+}
+
+/* --- Todos panel ------------------------------------------------------- */
+
+.todos-list {
+  list-style: none;
+  margin: 0;
+  padding: 2px 6px 2px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 220px;
+  overflow-y: auto;
+  font-size: 12.5px;
+}
+
+.todos-empty {
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 11px;
+  padding: 4px 0;
+}
+
+.todos-list:not(:empty) + .todos-empty {
+  display: none;
+}
+
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 5px 8px 5px 8px;
+  background: var(--bg-elev-2);
+  border-left: 3px solid var(--text-dim);
+  border-radius: 0 3px 3px 0;
+  line-height: 1.35;
+  transition:
+    background 0.25s ease,
+    border-left-color 0.25s ease,
+    opacity 0.25s ease;
+}
+
+.todo-status {
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.todo-content {
+  flex: 1;
+  word-break: break-word;
+}
+
+.todo-item.pending {
+  border-left-color: var(--text-dim);
+  color: var(--text);
+}
+.todo-item.pending .todo-status {
+  color: var(--text-dim);
+}
+
+.todo-item.in_progress {
+  border-left-color: var(--todos);
+  background: rgba(227, 179, 65, 0.07);
+}
+.todo-item.in_progress .todo-status {
+  color: var(--todos);
+}
+
+.todo-item.completed {
+  border-left-color: var(--ok);
+  opacity: 0.7;
+}
+.todo-item.completed .todo-content {
+  text-decoration: line-through;
+  color: var(--text-dim);
+}
+.todo-item.completed .todo-status {
+  color: var(--ok);
+}
+
+/* Brief flash to highlight what just changed in the latest write_todos call */
+@keyframes todoFlash {
+  0% {
+    background-color: rgba(227, 179, 65, 0.35);
+  }
+  100% {
+    background-color: var(--bg-elev-2);
+  }
+}
+@keyframes todoFlashInProgress {
+  0% {
+    background-color: rgba(227, 179, 65, 0.45);
+  }
+  100% {
+    background-color: rgba(227, 179, 65, 0.07);
+  }
+}
+
+.todo-item.flash-new,
+.todo-item.flash-update {
+  animation: todoFlash 1.4s ease-out;
+}
+.todo-item.in_progress.flash-new,
+.todo-item.in_progress.flash-update {
+  animation: todoFlashInProgress 1.4s ease-out;
 }
 
 /* Group state mirrors the agent card */
