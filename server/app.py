@@ -100,6 +100,29 @@ def _flatten_content_list(blocks: list) -> str:
     return "\n".join(parts)
 
 
+def _extract_todos(raw_input: Any) -> Optional[list]:
+    """`write_todos` is invoked with a `todos` list arg, but the input may
+    arrive as a dict, a JSON string, or wrapped in `{"input": "..."}`.
+    Returns the unwrapped list, or None if the shape isn't recognized.
+    """
+    candidate = raw_input
+    if isinstance(candidate, dict) and isinstance(candidate.get("input"), str):
+        try:
+            candidate = json.loads(candidate["input"])
+        except json.JSONDecodeError:
+            return None
+    if isinstance(candidate, str):
+        try:
+            candidate = json.loads(candidate)
+        except json.JSONDecodeError:
+            return None
+    if isinstance(candidate, dict):
+        todos = candidate.get("todos")
+        if isinstance(todos, list):
+            return todos
+    return None
+
+
 def _filter_event(event: dict) -> Optional[dict]:
     """Decide which streamed events get forwarded to the browser.
 
@@ -109,20 +132,30 @@ def _filter_event(event: dict) -> Optional[dict]:
     name: str = event.get("event", "")
     run_id: Optional[str] = event.get("run_id")
     data: dict = event.get("data") or {}
+    tool_name = event.get("name") or "unknown"
 
     if name == "on_tool_start":
+        # `write_todos` gets its own dedicated panel, not the activity stream.
+        if tool_name == "write_todos":
+            todos = _extract_todos(data.get("input"))
+            if todos is not None:
+                return {"type": "todos_update", "todos": todos, "runId": run_id}
+            return None
         return {
             "type": "tool_start",
-            "tool": event.get("name") or "unknown",
+            "tool": tool_name,
             "input": data.get("input"),
             "runId": run_id,
         }
 
     if name == "on_tool_end":
+        # Suppress write_todos end — the panel was already updated on start.
+        if tool_name == "write_todos":
+            return None
         text = _extract_output_text(data.get("output"))
         return {
             "type": "tool_end",
-            "tool": event.get("name") or "unknown",
+            "tool": tool_name,
             "output_preview": text[:1200],
             "truncated": len(text) > 1200,
             "runId": run_id,
