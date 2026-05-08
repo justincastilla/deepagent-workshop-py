@@ -29,15 +29,20 @@ def github_get(path: str) -> httpx.Response:
     """
     token = _require_env("GITHUB_API_KEY")
     url = f"https://api.github.com{path}"
-    res = httpx.get(
-        url,
-        headers={
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "deepagent-workshop",
-        },
-        timeout=30.0,
-    )
+    try:
+        res = httpx.get(
+            url,
+            headers={
+                "Authorization": f"token {token}",
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "deepagent-workshop",
+            },
+            timeout=60.0,
+        )
+    except httpx.TimeoutException as e:
+        raise RuntimeError(f"GitHub API timed out on {path}: {e}") from e
+    except httpx.HTTPError as e:
+        raise RuntimeError(f"GitHub API request failed on {path}: {e}") from e
     if res.is_error:
         raise RuntimeError(
             f"GitHub API error {res.status_code} on {path}: {res.text[:400]}"
