@@ -34,9 +34,12 @@ def fetch_recent_issues(owner: str, repo: str, limit: int = 10) -> str:
         limit: how many issues to fetch (1-30, default 10)
     """
     lim = max(1, min(30, limit))
-    res = github_get(
-        f"/repos/{owner}/{repo}/issues?per_page={lim}&state=all&sort=created&direction=desc"
-    )
+    try:
+        res = github_get(
+            f"/repos/{owner}/{repo}/issues?per_page={lim}&state=all&sort=created&direction=desc"
+        )
+    except RuntimeError as e:
+        return f"# Recent issues for {owner}/{repo}\n\nGitHub request failed: {e}"
     raw = res.json()
     if not isinstance(raw, list):
         # Defensive: a 200 with a {"message": "..."} body would otherwise
