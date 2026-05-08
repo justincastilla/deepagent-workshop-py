@@ -56,4 +56,9 @@ def create_llm(
         model=resolved_model,
         temperature=temperature,
         max_tokens=max_tokens,
+        # The LiteLLM proxy chains through to Azure → Claude, so the round
+        # trip can be slow under load. The OpenAI SDK default (~60s) trips
+        # too often and surfaces in the UI as `orchestrator run failed: timed out`.
+        timeout=180.0,
+        max_retries=2,
     )

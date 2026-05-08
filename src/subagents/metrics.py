@@ -31,29 +31,34 @@ def fetch_repo_metrics(owner: str, repo: str) -> str:
         owner: repo owner / org name (e.g. 'elastic')
         repo: repo name (e.g. 'elasticsearch')
     """
-    # 1) Repo info — single call, gets stars/forks/watchers/open_issues.
-    repo_data = github_get(f"/repos/{owner}/{repo}").json()
-    if not isinstance(repo_data, dict) or "stargazers_count" not in repo_data:
-        return (
-            f"# Metrics for {owner}/{repo}\n\n"
-            f"Could not fetch repo info — GitHub returned an unexpected payload "
-            f"(no `stargazers_count`). Double-check the owner and repo names."
+    try:
+        # 1) Repo info — single call, gets stars/forks/watchers/open_issues.
+        repo_data = github_get(f"/repos/{owner}/{repo}").json()
+        if not isinstance(repo_data, dict) or "stargazers_count" not in repo_data:
+            return (
+                f"# Metrics for {owner}/{repo}\n\n"
+                f"Could not fetch repo info — GitHub returned an unexpected payload "
+                f"(no `stargazers_count`). Double-check the owner and repo names."
+            )
+
+        # 2) Contributor count — via Link-header pagination trick. Cheap.
+        contrib_res = github_get(
+            f"/repos/{owner}/{repo}/contributors?per_page=1&anon=1"
         )
+        contributors = total_from_link_header(contrib_res.headers.get("Link"))
+        if contributors is None:
+            body = contrib_res.json()
+            contributors = len(body) if isinstance(body, list) else 0
 
-    # 2) Contributor count — via Link-header pagination trick. Cheap.
-    contrib_res = github_get(f"/repos/{owner}/{repo}/contributors?per_page=1&anon=1")
-    contributors = total_from_link_header(contrib_res.headers.get("Link"))
-    if contributors is None:
-        body = contrib_res.json()
-        contributors = len(body) if isinstance(body, list) else 0
-
-    # 3) Commits in the last 7 days.
-    since = (dt.datetime.utcnow() - dt.timedelta(days=7)).isoformat() + "Z"
-    commits_res = github_get(
-        f"/repos/{owner}/{repo}/commits?since={since}&per_page=100"
-    )
-    commits = commits_res.json()
-    commits_last_week = len(commits) if isinstance(commits, list) else 0
+        # 3) Commits in the last 7 days.
+        since = (dt.datetime.utcnow() - dt.timedelta(days=7)).isoformat() + "Z"
+        commits_res = github_get(
+            f"/repos/{owner}/{repo}/commits?since={since}&per_page=100"
+        )
+        commits = commits_res.json()
+        commits_last_week = len(commits) if isinstance(commits, list) else 0
+    except RuntimeError as e:
+        return f"# Metrics for {owner}/{repo}\n\nGitHub request failed: {e}"
 
     # Markdown formatting — readable for both the LLM AND the human
     # watching the activity panel. .get() with defaults so a partial
