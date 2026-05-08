@@ -38,10 +38,21 @@ def fetch_recent_issues(owner: str, repo: str, limit: int = 10) -> str:
         f"/repos/{owner}/{repo}/issues?per_page={lim}&state=all&sort=created&direction=desc"
     )
     raw = res.json()
+    if not isinstance(raw, list):
+        # Defensive: a 200 with a {"message": "..."} body would otherwise
+        # cause `for i in raw` to iterate dict keys (strings), and
+        # `i.get(...)` would explode with `'str' object has no attribute 'get'`.
+        msg = raw.get("message") if isinstance(raw, dict) else str(raw)[:200]
+        return (
+            f"# Recent issues for {owner}/{repo}\n\n"
+            f"Could not fetch issues — GitHub returned: {msg}"
+        )
 
     # The issues endpoint returns PRs too — filter them out.
     issues = []
     for i in raw:
+        if not isinstance(i, dict):
+            continue
         if i.get("pull_request"):
             continue
         body = re.sub(r"\s+", " ", (i.get("body") or "")).strip()
