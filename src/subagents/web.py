@@ -40,20 +40,28 @@ def search_adoption_signals(query: str, max_results: int = 5) -> str:
         max_results: how many results to return (1-10, default 5)
     """
     api_key = _require_env("TAVILY_API_KEY")
-    res = httpx.post(
-        "https://api.tavily.com/search",
-        json={
-            "api_key": api_key,
-            "query": query,
-            "search_depth": "basic",
-            "max_results": max_results,
-            "include_answer": False,
-            "include_raw_content": False,
-        },
-        timeout=30.0,
-    )
+    try:
+        res = httpx.post(
+            "https://api.tavily.com/search",
+            json={
+                "api_key": api_key,
+                "query": query,
+                "search_depth": "basic",
+                "max_results": max_results,
+                "include_answer": False,
+                "include_raw_content": False,
+            },
+            timeout=60.0,
+        )
+    except httpx.TimeoutException as e:
+        return f'# Web search for "{query}"\n\nTavily timed out: {e}'
+    except httpx.HTTPError as e:
+        return f'# Web search for "{query}"\n\nTavily request failed: {e}'
     if res.is_error:
-        raise RuntimeError(f"Tavily error {res.status_code}: {res.text[:400]}")
+        return (
+            f'# Web search for "{query}"\n\nTavily error {res.status_code}: '
+            f"{res.text[:400]}"
+        )
 
     data = res.json()
     results = data.get("results", []) or []

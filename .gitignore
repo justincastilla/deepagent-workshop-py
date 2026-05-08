@@ -39,6 +39,3 @@ infra/
 # start-local artifacts (per-machine, contains generated secrets — each attendee runs start-local themselves)
 elastic-start-local/
 
-# Slide-deck build artifacts (commit the .pptx, ignore intermediates)
-slides/*.pdf
-slides/slide-*.jpg
